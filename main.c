@@ -64,18 +64,50 @@ enum {
 /* condition flags provide information on the most recent executed calculation
  * they signal various situation about the instruction that was executed */
 enum {
-    FL_POS = 1 << 0,
-    FL_ZRO = 1 << 1,
-    FL_NEG = 1 << 2,
+    FL_POS = 1 << 0, // P
+    FL_ZRO = 1 << 1, // Z
+    FL_NEG = 1 << 2, // N
 };
 
 
+int main(int argc, char** argv) {
 
+    if(argc < 2) {
+        /* display the usage tip */
+        printf("LC-3 [image-file1]...\n");
+        exit(2);
+    }
 
-int main() {
+    for(int i=1; i<argc; i++) {
+        if(!read_image(argv[i])) {
+            printf("Failed to load image: %s\n", argv[i]);
+            exit(1);
+        }
+    }
 
+    signal(SIGINT, handle_interrupt);
+    disable_input_buffering();
+    /* only one condition flag should be set at any given time, so we set
+     * the Z flag */
+    registers[R_COND] = FL_ZRO;
 
+    /* the program counter is set to the starting address
+     * 0x3000 is the default */
+    enum { PC_START = 0x3000 };
+    registers[R_PC] = PC_START;
 
+    int running = 1;
+    while(running) {
+        /* fetch */
+        u_int16_t instruction = mem_read(reg[R_PC]);
+        u_int16_t opcode = instruction >> 12;
+
+        switch(op) {
+            case OP_ADD:
+
+        }
+
+    }
 
     return 0;
 }
