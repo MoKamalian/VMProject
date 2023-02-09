@@ -69,6 +69,40 @@ enum {
     FL_NEG = 1 << 2, // N
 };
 
+u_int16_t swap16(u_int16_t x) {
+    return (x << 8) | (x >> 8);
+};
+
+/* reading an LC-3 program into memory */
+void read_image_file(FILE* file) {
+    /* origin here tells us where in memory to place the image */
+    u_int16_t origin;
+    fread(&origin, sizeof(origin), 1, file);
+    origin = swap16(origin);
+
+    /* since we know the max file size we only need one fread */
+    u_int16_t max_read = MEMORY_MAX - origin;
+    u_int16_t* p = memory + origin;
+    size_t read = fread(p, sizeof(u_int16_t), max_read, file);
+
+    /* here we swap to little endian */
+    while(read-->0) {
+        *p = swap16(*p);
+        ++p;
+    }
+};
+
+/* convenience function for reading_image_file which reads an LC-3 program into memory   */
+int read_image(const char* image_path) {
+    FILE* file = fopen(image_path, "rb");
+    if(!file) { return 0; }
+
+    read_image_file(file);
+    fclose(file);
+
+    return 1;
+};
+
 
 int main(int argc, char** argv) {
 
