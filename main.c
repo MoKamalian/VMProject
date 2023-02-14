@@ -46,7 +46,7 @@ enum {
     OP_BR = 0, /* branch opcode */
     OP_ADD,    /* add opcode */
     OP_LD,     /* load */
-    OP_SD,     /* store */
+    OP_ST,     /* store */
     OP_JSR,    /* jump register */
     OP_AND,    /* bitwise and */
     OP_LDR,    /* load register */
@@ -67,6 +67,12 @@ enum {
     FL_POS = 1 << 0, // P
     FL_ZRO = 1 << 1, // Z
     FL_NEG = 1 << 2, // N
+};
+
+/* memory mapped registers */
+enum {
+    MR_KBSR = 0xFE00, /* KEYBOARD STATUS */
+    MR_KBDR = 0xFE02  /* KEYBOARD DATA */
 };
 
 u_int16_t swap16(u_int16_t x) {
@@ -103,6 +109,53 @@ int read_image(const char* image_path) {
     return 1;
 };
 
+/* MAC/LINUX */
+struct termios original_tio;
+
+void disable_input_buffering() {
+    tcgetattr(STDIN_FILENO, &original_tio);
+    struct termios new_tio = original_tio;
+    new_tio.c_lflag &= ~ICANON & ~ECHO;
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+}
+
+void restore_input_buffering() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_tio);
+};
+
+u_int16_t check_key() {
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(STDIN_FILENO, &readfds);
+
+    struct timeval timeout;
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    return select(1, &readfds, NULL, NULL, &timeout) != 0;
+};
+
+/* interrupt handling */
+void handle_interrupt(int signal) {
+    restore_input_buffering();
+    printf("\n");
+    exit(-2);
+};
+
+/* for reading of memory mapped registers */
+u_int16_t mem_read(u_int16_t address) {
+    if(address == MR_KBSR) {
+        if(check_key()) {
+
+            memory[MR_KBSR] = (1 << 15);
+            memory[MR_KBDR] = getchar();
+
+        } else {
+            memory[MR_KBSR] = 0;
+        }
+    }
+    return memory[address];
+};
 
 int main(int argc, char** argv) {
 
@@ -133,12 +186,56 @@ int main(int argc, char** argv) {
     int running = 1;
     while(running) {
         /* fetch */
-        u_int16_t instruction = mem_read(reg[R_PC]);
+        u_int16_t instruction = mem_read(registers[R_PC]);
         u_int16_t opcode = instruction >> 12;
 
-        switch(op) {
+        switch(opcode) {
             case OP_ADD:
-
+                /* add instruction */
+                break;
+            case OP_AND:
+                /* and instruction */
+            case OP_NOT:
+                /* not instruction */
+                break;
+            case OP_BR:
+                /* branch op code */
+                break;
+            case OP_JMP:
+                /* perform jump */
+                break;
+            case OP_JSR:
+                /* jump register */
+                break;
+            case OP_LD:
+                /* load */
+                break;
+            case OP_LDI:
+                /* load indirect */
+                break;
+            case OP_LDR:
+                /* load register */
+                break;
+            case OP_LEA:
+                /* load affective address */
+                break;
+            case OP_ST:
+                /* store */
+                break;
+            case OP_STI:
+                /* store indirect */
+                break;
+            case OP_STR:
+                /* store register */
+                break;
+            case OP_TRAP:
+                /* trap signal */
+                break;
+            case OP_RES:
+            case OP_RTI:
+            default:
+                /* reserved and unused default to bad opcode */
+                break;
         }
 
     }
