@@ -34,7 +34,35 @@ Executing instructions
     -
 
 Implementing Instructions
-    -
+    - In this section we will implement the instructions
+    - The encoding for the ADD instruction will look like this:
+        - The first four bits (15-12th bit) is the opcode for OP_ADD (0001)
+        - bits 11-9 (3 bits) is the destination register where the sum will
+          be added
+        - bits 8-6 (3 bits) is the register where the first number to add is
+        - the 5th bit determines the mode of the instruction: immediate or
+          register mode.  In register mode the second number to add is
+          stored in another address similar to the first number.  This
+          address is indicated by the 2-0th bits (the other bits are unused).
+
+          when 5th bit is set to 1:
+          immediate mode, the second value to add is embedded within the
+          instruction (from 4-0th bits).  This removes the need to load the
+          second value and reduces the number of instructions.  The tradeoff
+          is that the second value can only be as large as 2^5=32 unsigned
+          so immediate mode is mainly used for incrementation.
+
+        - whenever we write a value to a register we will update the condition
+          flag to indicate its sign
+
+
+
+
+
+
+
+
+
 
 
 

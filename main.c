@@ -157,6 +157,32 @@ u_int16_t mem_read(u_int16_t address) {
     return memory[address];
 };
 
+
+
+
+/* implementation of the instructions */
+/* sign extension: when using immediate mode we need to add a 5 bit number to a 16
+ * bit number and so we need to extend the 5 bit number to match 16 bits, for
+ * positive numbers we just add 0s but negatives we add 1s to preserve the sign */
+u_int16_t sign_extend(u_int16_t x, int bit_count) {
+    if((x >> (bit_count - 1)) & 1) {
+        x |= (0xFFFF << bit_count);
+    }
+    return x;
+};
+
+/* updating conditions flag */
+void update_flag(u_int16_t r) {
+    if(registers[r] == 0) {
+        registers[R_COND] = FL_ZRO;
+    } else if(registers[r] >> 15) { /* a 1 in the left-most bit indicates negative */
+        registers[R_COND] = FL_NEG;
+    } else {
+        registers[R_COND] = FL_POS;
+    }
+}
+
+
 int main(int argc, char** argv) {
 
     if(argc < 2) {
@@ -190,8 +216,25 @@ int main(int argc, char** argv) {
         u_int16_t opcode = instruction >> 12;
 
         switch(opcode) {
-            case OP_ADD:
+            case OP_ADD: {
                 /* add instruction */
+                /* destination register (DR) */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                /* the first operand (SR1) */
+                u_int16_t r1 = (instruction >> 6) & 0x7;
+                /* if we are in immediate mode */
+                u_int16_t imm_flag = (instruction >> 5) & 0x1;
+
+                if(imm_flag) {
+                    u_int16_t imm5 = sign_extend(instruction & 0x1F, 5);
+                    registers[r0] = registers[r1] + imm5;
+                } else {
+                    u_int16_t r2 = instruction & 0x7;
+                    registers[r0] = registers[r1] + registers[r2]; /* add the two values in the two registers */
+                }
+
+                update_flag(r0);
+            }
                 break;
             case OP_AND:
                 /* and instruction */
@@ -240,6 +283,7 @@ int main(int argc, char** argv) {
 
     }
 
+    restore_input_buffering();
     return 0;
 }
 
