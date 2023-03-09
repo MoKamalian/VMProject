@@ -236,10 +236,27 @@ int main(int argc, char** argv) {
                 update_flag(r0);
             }
                 break;
-            case OP_AND:
+            case OP_AND: {
                 /* and instruction */
+                /* AND instruction */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t r1 = (instruction >> 6) & 0x7;
+                u_int16_t imm_flag = (instruction >> 5) & 0x1;
+
+                if(imm_flag) {
+                    u_int16_t imm5 = sign_extend(instruction & 0x1F, 5);
+                    registers[r0] = registers[r1] & imm5;
+                } else {
+                    u_int16_t r2 = instruction & 0x7;
+                    registers[r0] = registers[r1] & registers[r2];
+                }
+                update_flag(r0);
+            }
             case OP_NOT:
+
                 /* not instruction */
+
+
                 break;
             case OP_BR:
                 /* branch op code */
@@ -253,8 +270,17 @@ int main(int argc, char** argv) {
             case OP_LD:
                 /* load */
                 break;
-            case OP_LDI:
+            case OP_LDI: {
                 /* load indirect */
+                /* Destination register */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                /* PCoffset 9 */
+                u_int16_t pc_offset = sign_extend(instruction & 0x1FF, 9);
+                /* Add pc_offset to the current PC, look at that memory location to get the
+                 * final address */
+                registers[r0] = mem_read(mem_read(registers[R_PC] + pc_offset));
+                update_flag(r0);
+            }
                 break;
             case OP_LDR:
                 /* load register */

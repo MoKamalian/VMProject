@@ -56,6 +56,13 @@ Implementing Instructions
           flag to indicate its sign
 
 
+LDI
+    - PCoffset9 is the memory address to load the value from
+    - this is sign extended and added to the program counter to get the address
+      to load the value from
+    -
+
+
 
 
 
