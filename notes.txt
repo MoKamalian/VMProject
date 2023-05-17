@@ -56,10 +56,18 @@ Implementing Instructions
           flag to indicate its sign
 
 
-LDI
+LDI: load indirect
+    - load a value from memory into a register
     - PCoffset9 is the memory address to load the value from
     - this is sign extended and added to the program counter to get the address
       to load the value from
+    - some bits are dedicated for the opcode and some dedicated for the
+    destination register (DR).
+    - In order to get the address the value is stored in we need to sign extend
+    bits [8:0] so it matches a 16 bit number
+    - since the LD instruction is limited to address offsets of 9 bits (the memory
+    needs 16 bits) the LDI can load insctructions that are local to the program
+    counter (since we are offsetting from the program counter)
     -
 
 

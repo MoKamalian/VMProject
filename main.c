@@ -157,7 +157,10 @@ u_int16_t mem_read(u_int16_t address) {
     return memory[address];
 };
 
-
+/* writing to memory location */
+void mem_write(u_int16_t address, u_int16_t value) {
+    memory[address] = value;
+};
 
 
 /* implementation of the instructions */
@@ -252,23 +255,50 @@ int main(int argc, char** argv) {
                 }
                 update_flag(r0);
             }
-            case OP_NOT:
-
+            case OP_NOT: {
                 /* not instruction */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t r1 = (instruction >> 6) & 0x7;
 
-
+                registers[r0] = ~registers[r1];
+                update_flag(r0);
+            }
                 break;
-            case OP_BR:
+            case OP_BR: {
                 /* branch op code */
+                u_int16_t pc_offset = sign_extend(instruction & 0x1FF, 9);
+                u_int16_t condition_flag = (instruction >> 9) & 0x7;
+
+                if(condition_flag & registers[R_COND]) { /* check if condition flag is equal */
+                    registers[R_PC] += pc_offset;
+                }
+            }
                 break;
-            case OP_JMP:
+            case OP_JMP: {
                 /* perform jump */
+                u_int16_t r1 = (instruction >> 6) & 0x7; /* grab the register to jump to */
+                registers[R_PC] = registers[r1];
+            }
                 break;
-            case OP_JSR:
+            case OP_JSR: {
                 /* jump register */
+                u_int16_t long_flag = (instruction >> 11) & 1;
+                registers[R_R7] = registers[R_PC];
+
+                if(long_flag) {
+                    u_int16_t long_pc_offset = sign_extend(instruction & 0x7FF, 11);
+                    registers[R_PC] += long_pc_offset; /* jump register */
+                }
+            }
                 break;
-            case OP_LD:
+            case OP_LD: {
                 /* load */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t pc_offset = sign_extend(instruction & 0x1FF, 9);
+
+                registers[r0] = mem_read(registers[R_PC] + pc_offset);
+                update_flag(r0);
+            }
                 break;
             case OP_LDI: {
                 /* load indirect */
@@ -282,26 +312,57 @@ int main(int argc, char** argv) {
                 update_flag(r0);
             }
                 break;
-            case OP_LDR:
+            case OP_LDR: {
                 /* load register */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t r1 = (instruction >> 6) & 0x7;
+                u_int16_t offset = sign_extend(instruction & 0x3F, 6);
+
+                registers[r0] = mem_read(registers[r1] + offset);
+                update_flag(r0);
+            }
                 break;
-            case OP_LEA:
-                /* load affective address */
+            case OP_LEA: {
+                /* load effective address */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t pc_offset = sign_extend(instruction & 0x1FF, 9);
+
+                registers[r0] = registers[R_PC] + pc_offset;
+                update_flag(r0);
+            }
                 break;
-            case OP_ST:
+            case OP_ST: {
                 /* store */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t pc_offset = sign_extend(instruction & 0x1FF, 9);
+
+                mem_write(registers[R_PC] + pc_offset, registers[r0]);
+            }
                 break;
-            case OP_STI:
+            case OP_STI: {
                 /* store indirect */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t pc_offset = sign_extend(instruction & 0x1FF, 9);
+
+                mem_write(mem_read(registers[R_PC] + pc_offset), registers[r0]);
+            }
                 break;
-            case OP_STR:
+            case OP_STR: {
                 /* store register */
+                u_int16_t r0 = (instruction >> 9) & 0x7;
+                u_int16_t r1 = (instruction >> 6) & 0x7;
+                u_int16_t offset = sign_extend(instruction & 0x3F, 6);
+
+                mem_write(registers[r1] + offset, registers[r0]);
+            }
                 break;
             case OP_TRAP:
                 /* trap signal */
                 break;
             case OP_RES:
             case OP_RTI:
+                abort();
+                break;
             default:
                 /* reserved and unused default to bad opcode */
                 break;
