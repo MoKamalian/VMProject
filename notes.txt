@@ -1,4 +1,5 @@
 
+source: https://www.jmeiners.com/lc3-vm/#c-ldi-sample-block-31
 
 Assembly examples
     - example of hello world assembly program:
@@ -68,6 +69,19 @@ LDI: load indirect
     - since the LD instruction is limited to address offsets of 9 bits (the memory
     needs 16 bits) the LDI can load insctructions that are local to the program
     counter (since we are offsetting from the program counter)
+
+
+Trap routines
+    - The LC-3 provides several trap routines for doing common tasks or interacting
+    with IO
+    - trap routines can be thought of as APIs to the operating system
+    - similar to an opcode, each trap routine is assigned a trap code. To execute
+    a trap routine, you call the TRAP instruction with the trap code of the
+    corresponding routine
+    - the trap routines themselves are written in assembly
+    - When a trap code is called, the PC is moved to the routines starting address.
+    The routine is executed and once complete, the PC moves back to the address
+    following the initial call to the routine.
     -
 
 
