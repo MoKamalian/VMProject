@@ -82,7 +82,16 @@ Trap routines
     - When a trap code is called, the PC is moved to the routines starting address.
     The routine is executed and once complete, the PC moves back to the address
     following the initial call to the routine.
-    -
+
+
+Loading a program
+    - assembly code is converted  to machine code -> a file containing an array of
+    instructions and data
+    - The very first 16 bits of the program file is the address where the program
+    should start -> this address is called the origin
+    - the origin address is the first address that is loaded when a program is
+    executed
+    - 
 
 
 

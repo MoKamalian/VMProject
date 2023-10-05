@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/termios.h>
 #include <sys/mman.h>
 
@@ -36,6 +37,7 @@ enum {
     R_COND,
     R_COUNT /* count of the total number of CPU registers, i.e. 10 total */
 };
+
 u_int16_t registers[R_COUNT];
 
 /* opcodes of the LC-3; i.e. the instruction set of the computer
@@ -75,38 +77,14 @@ enum {
     MR_KBDR = 0xFE02  /* KEYBOARD DATA */
 };
 
-u_int16_t swap16(u_int16_t x) {
-    return (x << 8) | (x >> 8);
-};
-
-/* reading an LC-3 program into memory */
-void read_image_file(FILE* file) {
-    /* origin here tells us where in memory to place the image */
-    u_int16_t origin;
-    fread(&origin, sizeof(origin), 1, file);
-    origin = swap16(origin);
-
-    /* since we know the max file size we only need one fread */
-    u_int16_t max_read = MEMORY_MAX - origin;
-    u_int16_t* p = memory + origin;
-    size_t read = fread(p, sizeof(u_int16_t), max_read, file);
-
-    /* here we swap to little endian */
-    while(read-->0) {
-        *p = swap16(*p);
-        ++p;
-    }
-};
-
-/* convenience function for reading_image_file which reads an LC-3 program into memory   */
-int read_image(const char* image_path) {
-    FILE* file = fopen(image_path, "rb");
-    if(!file) { return 0; }
-
-    read_image_file(file);
-    fclose(file);
-
-    return 1;
+/* Trap codes: when a trap code is called, a C function will be called */
+enum {
+    TRAP_GETC = 0x20, // get character from the keyboard
+    TRAP_OUT = 0x21, // output a character
+    TRAP_PUTS = 0x22, // output a word string
+    TRAP_IN = 0x23, // get the character from keyboard, and also echo out to terminal
+    TRAP_PUTSP = 0x24, // output a byte string
+    TRAP_HALT = 0x25 // halt the entire program
 };
 
 /* MAC/LINUX */
@@ -142,6 +120,67 @@ void handle_interrupt(int signal) {
     exit(-2);
 };
 
+/* implementation of the instructions */
+/* sign extension: when using immediate mode we need to add a 5 bit number to a 16
+ * bit number and so we need to extend the 5 bit number to match 16 bits, for
+ * positive numbers we just add 0s but negatives we add 1s to preserve the sign */
+u_int16_t sign_extend(u_int16_t x, int bit_count) {
+    if((x >> (bit_count - 1)) & 1) {
+        x |= (0xFFFF << bit_count);
+    }
+    return x;
+};
+
+u_int16_t swap16(u_int16_t x) {
+    return (x << 8) | (x >> 8);
+};
+
+/* updating conditions flag */
+void update_flag(u_int16_t r) {
+    if(registers[r] == 0) {
+        registers[R_COND] = FL_ZRO;
+    } else if(registers[r] >> 15) { /* a 1 in the left-most bit indicates negative */
+        registers[R_COND] = FL_NEG;
+    } else {
+        registers[R_COND] = FL_POS;
+    }
+}
+
+/* reading an LC-3 program into memory */
+void read_image_file(FILE* file) {
+    /* origin here is the first 16 bits of the file read */
+    u_int16_t origin;
+    fread(&origin, sizeof(origin), 1, file);
+    origin = swap16(origin);
+
+    /* since we know the max file size we only need one fread */
+    u_int16_t max_read = MEMORY_MAX - origin;
+    u_int16_t* p = memory + origin;
+    size_t read = fread(p, sizeof(u_int16_t), max_read, file);
+
+    /* here we swap to little endian */
+    while(read-- > 0) {
+        *p = swap16(*p);
+        ++p;
+    }
+};
+
+/* convenience function for reading_image_file which reads an LC-3 program into memory   */
+int read_image(const char* image_path) {
+    FILE* file = fopen(image_path, "rb");
+    if(!file) { return 0; }
+
+    read_image_file(file);
+    fclose(file);
+
+    return 1;
+};
+
+/* writing to memory location */
+void mem_write(u_int16_t address, u_int16_t value) {
+    memory[address] = value;
+};
+
 /* for reading of memory mapped registers */
 u_int16_t mem_read(u_int16_t address) {
     if(address == MR_KBSR) {
@@ -157,45 +196,6 @@ u_int16_t mem_read(u_int16_t address) {
     return memory[address];
 };
 
-/* writing to memory location */
-void mem_write(u_int16_t address, u_int16_t value) {
-    memory[address] = value;
-};
-
-
-/* implementation of the instructions */
-/* sign extension: when using immediate mode we need to add a 5 bit number to a 16
- * bit number and so we need to extend the 5 bit number to match 16 bits, for
- * positive numbers we just add 0s but negatives we add 1s to preserve the sign */
-u_int16_t sign_extend(u_int16_t x, int bit_count) {
-    if((x >> (bit_count - 1)) & 1) {
-        x |= (0xFFFF << bit_count);
-    }
-    return x;
-};
-
-/* updating conditions flag */
-void update_flag(u_int16_t r) {
-    if(registers[r] == 0) {
-        registers[R_COND] = FL_ZRO;
-    } else if(registers[r] >> 15) { /* a 1 in the left-most bit indicates negative */
-        registers[R_COND] = FL_NEG;
-    } else {
-        registers[R_COND] = FL_POS;
-    }
-}
-
-/* Trap codes: when a trap code is called, a C function will be called */
-enum {
-    TRAP_GETC = 0x20, // get character from the keyboard
-    TRAP_OUT = 0x21, // output a character
-    TRAP_PUTS = 0x22, // output a word string
-    TRAP_IN = 0x23, // get the character from keyboard, and also echo out to terminal
-    TRAP_PUTSP = 0x24, // output a byte string
-    TRAP_HALT = 0x25 // halt the entire program
-};
-
-
 int main(int argc, char** argv) {
 
     if(argc < 2) {
@@ -204,12 +204,15 @@ int main(int argc, char** argv) {
         exit(2);
     }
 
+
     for(int i=1; i<argc; i++) {
         if(!read_image(argv[i])) {
             printf("Failed to load image: %s\n", argv[i]);
             exit(1);
         }
     }
+
+
 
     signal(SIGINT, handle_interrupt);
     disable_input_buffering();
@@ -298,6 +301,9 @@ int main(int argc, char** argv) {
                 if(long_flag) {
                     u_int16_t long_pc_offset = sign_extend(instruction & 0x7FF, 11);
                     registers[R_PC] += long_pc_offset; /* jump register */
+                } else {
+                    u_int16_t r1 = (instruction >> 6) & 0x7;
+                    registers[R_PC] = registers[r1];
                 }
             }
                 break;
@@ -433,10 +439,9 @@ int main(int argc, char** argv) {
                 break;
             case OP_RES:
             case OP_RTI:
-                abort();
-                break;
             default:
                 /* reserved and unused default to bad opcode */
+                abort();
                 break;
         }
 
